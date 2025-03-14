@@ -1,0 +1,9 @@
+---
+description: How the AI should handle the setup process
+globs: 
+alwaysApply: false
+---
+
+# When Starting to build the project
+
+- Understand the setup, initial prompt, page routes, and auth may not fully emcompass all the application needs so read the project context to better understand the goal

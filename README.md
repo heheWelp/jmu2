@@ -157,10 +157,6 @@ To learn more about the technologies used in this project:
 - [Tailwind CSS Documentation](https://tailwindcss.com/docs)
 - [Supabase Documentation](https://supabase.com/docs)
 
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
 ## Acknowledgements
 
 - [Next.js](https://nextjs.org/)

@@ -1,23 +1,22 @@
-import DashboardLayout from "@/components/layout/DashboardLayout";
-import Overview from "@/components/features/Overview";
-import UserManagement from "@/components/features/UserManagement";
-import ContentManagement from "@/components/features/ContentManagement";
-import ActivityLog from "@/components/features/ActivityLog";
-import QuickActions from "@/components/features/QuickActions";
+import { redirect } from 'next/navigation'
+import { createClient } from '@/lib/supabase'
 
-export default function DashboardPage() {
-  return (
-    <DashboardLayout>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">Admin Dashboard</h1>
-        <p className="text-gray-600">Welcome to the JMU Learning Management System</p>
-      </div>
-      
-      <Overview />
-      <UserManagement />
-      <ContentManagement />
-      <ActivityLog />
-      <QuickActions />
-    </DashboardLayout>
-  );
+export default async function Dashboard() {
+  const supabase = createClient()
+  const { data: { session } } = await supabase.auth.getSession()
+  
+  console.log('[Dashboard] Checking session:', !!session)
+  
+  if (session && session.user) {
+    const userRole = session.user.user_metadata?.role || 'admin'
+    console.log(`[Dashboard] User authenticated with role: ${userRole}, redirecting to /${userRole}/dashboard`)
+    console.log(`[Dashboard] User email: ${session.user.email}`)
+    console.log(`[Dashboard] User metadata:`, JSON.stringify(session.user.user_metadata))
+    
+    // Use a 307 temporary redirect to ensure the redirect is followed
+    return redirect(`/${userRole}/dashboard`)
+  }
+  
+  console.log('[Dashboard] No session, redirecting to signin')
+  return redirect('/auth/signin')
 } 

@@ -1,4 +1,7 @@
 You are responsible for ensuring consistency and proper structure across the established markdown files when generating code based on the following markdown files:
+- project-context.mdc
+- front-end-developer.mdc
+- database-schema
 - 1-initial-prompt.md
 - 2-page-routes.md
 - 3-auth.md

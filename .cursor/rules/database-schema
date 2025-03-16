@@ -1,0 +1,177 @@
+-- Table: course
+CREATE TABLE public.course (
+  id uuid NOT NULL DEFAULT extensions.uuid_generate_v4(),
+  name text NULL,
+  description text NULL,
+  price integer NULL,
+  is_progress_limited boolean NULL,
+  course_code text NULL,
+  learning_objective text NULL,
+  education_level uuid NULL,
+  user_type uuid NULL,
+  CONSTRAINT course_pkey PRIMARY KEY (id),
+  CONSTRAINT fk_course_education_level FOREIGN KEY (education_level) REFERENCES education_levels(id),
+  CONSTRAINT fk_course_user_type FOREIGN KEY (user_type) REFERENCES user_roles(id)
+);
+
+-- Table: discussion_posts
+CREATE TABLE public.discussion_posts (
+  id uuid NOT NULL DEFAULT extensions.uuid_generate_v4(),
+  user_id uuid NULL,
+  course_order integer NOT NULL,
+  content text NOT NULL,
+  parent_id uuid NULL,
+  created_at timestamp with time zone NULL DEFAULT now(),
+  CONSTRAINT discussion_posts_pkey PRIMARY KEY (id),
+  CONSTRAINT discussion_posts_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES discussion_posts(id) ON DELETE CASCADE,
+  CONSTRAINT discussion_posts_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_discussion_posts_user_id ON public.discussion_posts USING btree (user_id);
+
+-- Table: education_levels
+CREATE TABLE public.education_levels (
+  id uuid NOT NULL DEFAULT extensions.uuid_generate_v4(),
+  level_name text NOT NULL,
+  CONSTRAINT education_levels_pkey PRIMARY KEY (id)
+);
+
+-- Table: enrolment
+CREATE TABLE public.enrolment (
+  course_id uuid NULL,
+  student_id uuid NULL,
+  enrolment_datetime timestamp with time zone NULL,
+  completed_datetime timestamp with time zone NULL,
+  CONSTRAINT fk_enrol_course FOREIGN KEY (course_id) REFERENCES course(id),
+  CONSTRAINT fk_enrol_student FOREIGN KEY (student_id) REFERENCES profiles(id)
+);
+
+-- Table: lesson
+CREATE TABLE public.lesson (
+  id uuid NOT NULL DEFAULT extensions.uuid_generate_v4(),
+  module_id uuid NULL,
+  name text NULL,
+  number integer NULL,
+  video_url text NULL,
+  lesson_details text NULL,
+  course_order integer NULL,
+  CONSTRAINT lesson_pkey PRIMARY KEY (id),
+  CONSTRAINT fk_lesson_module FOREIGN KEY (module_id) REFERENCES module(id)
+);
+
+-- Table: media
+CREATE TABLE public.media (
+  id uuid NOT NULL DEFAULT extensions.uuid_generate_v4(),
+  course_id uuid NOT NULL,
+  media_type text NOT NULL,
+  media_url text NOT NULL,
+  course_order integer NOT NULL,
+  created_at timestamp with time zone NULL DEFAULT now(),
+  CONSTRAINT media_pkey PRIMARY KEY (id),
+  CONSTRAINT unique_media_order UNIQUE (course_id, course_order),
+  CONSTRAINT fk_media_course FOREIGN KEY (course_id) REFERENCES course(id)
+);
+CREATE INDEX IF NOT EXISTS idx_media_course_id ON public.media USING btree (course_id);
+
+-- Table: module
+CREATE TABLE public.module (
+  id uuid NOT NULL DEFAULT extensions.uuid_generate_v4(),
+  course_id uuid NULL,
+  name text NULL,
+  number integer NULL,
+  CONSTRAINT module_pkey PRIMARY KEY (id),
+  CONSTRAINT fk_module_course FOREIGN KEY (course_id) REFERENCES course(id)
+);
+
+-- Table: profiles
+CREATE TABLE public.profiles (
+  id uuid NOT NULL DEFAULT extensions.uuid_generate_v4(),
+  user_id uuid NULL,
+  first_name text NULL,
+  last_name text NULL,
+  email text NULL,
+  preferred_name text NULL,
+  profile_picture text NULL,
+  pronouns text NULL,
+  gender text NULL,
+  month_of_birth integer NULL,
+  race_ethnicity text NULL,
+  user_role uuid NULL,
+  education_level uuid NULL,
+  created_at timestamp with time zone NULL DEFAULT now(),
+  updated_at timestamp with time zone NULL DEFAULT now(),
+  CONSTRAINT profiles_pkey PRIMARY KEY (id),
+  CONSTRAINT profiles_education_level_fkey FOREIGN KEY (education_level) REFERENCES education_levels(id),
+  CONSTRAINT profiles_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE,
+  CONSTRAINT profiles_user_role_fkey FOREIGN KEY (user_role) REFERENCES user_roles(id)
+);
+CREATE INDEX IF NOT EXISTS idx_profiles_user_role ON public.profiles USING btree (user_role);
+CREATE INDEX IF NOT EXISTS idx_profiles_education_level ON public.profiles USING btree (education_level);
+
+-- Table: quiz
+CREATE TABLE public.quiz (
+  id uuid NOT NULL DEFAULT extensions.uuid_generate_v4(),
+  course_id uuid NULL,
+  name text NULL,
+  number integer NULL,
+  course_order integer NULL,
+  min_pass_score integer NULL,
+  is_pass_required boolean NULL,
+  CONSTRAINT quiz_pkey PRIMARY KEY (id),
+  CONSTRAINT fk_quiz_course FOREIGN KEY (course_id) REFERENCES course(id)
+);
+
+-- Table: quiz_answer
+CREATE TABLE public.quiz_answer (
+  id uuid NOT NULL DEFAULT extensions.uuid_generate_v4(),
+  question_id uuid NULL,
+  answer_text text NULL,
+  is_correct boolean NULL,
+  CONSTRAINT quiz_answer_pkey PRIMARY KEY (id),
+  CONSTRAINT fk_quizans_question FOREIGN KEY (question_id) REFERENCES quiz_question(id)
+);
+
+-- Table: quiz_question
+CREATE TABLE public.quiz_question (
+  id uuid NOT NULL DEFAULT extensions.uuid_generate_v4(),
+  quiz_id uuid NULL,
+  question_title text NULL,
+  CONSTRAINT quiz_question_pkey PRIMARY KEY (id),
+  CONSTRAINT fk_quizquest_quiz FOREIGN KEY (quiz_id) REFERENCES quiz(id)
+);
+
+-- Table: student
+CREATE TABLE public.student (
+  id uuid NOT NULL DEFAULT extensions.uuid_generate_v4(),
+  email_address text NULL,
+  password text NULL,
+  CONSTRAINT student_pkey PRIMARY KEY (id)
+);
+
+-- Table: student_lesson
+CREATE TABLE public.student_lesson (
+  student_id uuid NULL,
+  lesson_id uuid NULL,
+  completed_datetime timestamp with time zone NULL,
+  CONSTRAINT fk_stdles_lesson FOREIGN KEY (lesson_id) REFERENCES lesson(id),
+  CONSTRAINT fk_stdles_student FOREIGN KEY (student_id) REFERENCES profiles(id)
+);
+
+-- Table: student_quiz_attempt
+CREATE TABLE public.student_quiz_attempt (
+  student_id uuid NULL,
+  quiz_id uuid NULL,
+  attempt_datetime timestamp with time zone NULL,
+  score_achieved integer NULL,
+  CONSTRAINT fk_stdquiz_quiz FOREIGN KEY (quiz_id) REFERENCES quiz(id),
+  CONSTRAINT fk_stdquiz_student FOREIGN KEY (student_id) REFERENCES profiles(id)
+);
+
+-- Table: user_roles
+CREATE TABLE public.user_roles (
+  id uuid NOT NULL DEFAULT extensions.uuid_generate_v4(),
+  role_name text NOT NULL,
+  CONSTRAINT user_roles_pkey PRIMARY KEY (id)
+);
+
+-- Row Level Security Policies
+-- Currently, there are no existing RLS policies defined for the public schema. You will need to create RLS policies to control access to the tables based on user roles and authentication status.

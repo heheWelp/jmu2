@@ -1,386 +1,448 @@
-import { useState } from "react";
-import Image from "next/image";
-import Link from "next/link";
-import { useRouter } from "next/router";
-import { Eye, EyeOff, UserPlus, AlertCircle, ArrowLeft, CheckCircle } from "lucide-react";
-import { createBrowserClient } from '@supabase/ssr';
+'use client'
 
-const SignUpPage = () => {
-  const router = useRouter();
+import { useState, useEffect } from 'react'
+import { createBrowserClient } from '@supabase/ssr'
+import Link from 'next/link'
+import { useRouter } from 'next/router'
+
+// Define types
+interface UserRole {
+  id: string
+  role_name: string
+}
+
+interface ProfileData {
+  first_name: string
+  last_name: string
+  preferred_name: string
+  user_role: string
+}
+
+export default function SignUp() {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [userRoles, setUserRoles] = useState<UserRole[]>([])
+  const [loadingData, setLoadingData] = useState(true)
+  const router = useRouter()
   
-  const [step, setStep] = useState<'role' | 'info' | 'success'>('role');
-  const [selectedRole, setSelectedRole] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    password: "",
-    confirmPassword: "",
-    agreeTerms: false
-  });
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  
+  // Profile data
+  const [profileData, setProfileData] = useState<ProfileData>({
+    first_name: '',
+    last_name: '',
+    preferred_name: '',
+    user_role: '',
+  })
+
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
-  
-  const roles = [
-    { id: 'instructor', name: 'Instructor', color: 'bg-green-100 border-green-300 text-green-800', description: 'Create and manage courses, teach students' },
-    { id: 'provider', name: 'Provider', color: 'bg-purple-100 border-purple-300 text-purple-800', description: 'Provide specialized services and resources' },
-    { id: 'student', name: 'Student', color: 'bg-amber-100 border-amber-300 text-amber-800', description: 'Enroll in courses and access learning materials' }
-  ];
-  
-  const handleRoleSelect = (roleId: string) => {
-    setSelectedRole(roleId);
-    setStep('info');
-    
-    // Pre-fill email domain for demo purposes
-    setFormData(prev => ({
-      ...prev,
-      email: `your.name@jmu.edu`
-    }));
-  };
-  
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
-  };
-  
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Validate form
-    if (!formData.firstName || !formData.lastName || !formData.email || !formData.password) {
-      setError("Please fill in all required fields");
-      return;
-    }
-    
-    if (formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match");
-      return;
-    }
-    
-    if (!formData.agreeTerms) {
-      setError("You must agree to the terms and conditions");
-      return;
-    }
-    
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      // Create user in Supabase
-      const { data, error } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
-        options: {
-          data: {
-            first_name: formData.firstName,
-            last_name: formData.lastName,
-            role: selectedRole
+  )
+
+  // Fetch user roles on component mount
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoadingData(true)
+      
+      try {
+        console.log('Fetching user roles...')
+        
+        // First check if user_roles table exists and has data
+        const { count, error: countError } = await supabase
+          .from('user_roles')
+          .select('*', { count: 'exact', head: true })
+        
+        console.log('User roles count:', count)
+        
+        if (countError) {
+          console.error('Error checking user_roles table:', countError)
+          throw countError
+        }
+        
+        // If no roles exist, create default roles
+        if (!count || count === 0) {
+          console.log('No user roles found, creating default roles...')
+          
+          const defaultRoles = [
+            { role_name: 'admin' },
+            { role_name: 'instructor' },
+            { role_name: 'provider' },
+            { role_name: 'student' }
+          ]
+          
+          const { error: insertError } = await supabase
+            .from('user_roles')
+            .insert(defaultRoles)
+          
+          if (insertError) {
+            console.error('Error creating default roles:', insertError)
+            throw insertError
           }
         }
-      });
+        
+        // Fetch user roles
+        const { data: roles, error: rolesError } = await supabase
+          .from('user_roles')
+          .select('id, role_name')
+          .neq('role_name', 'admin') // Exclude admin role
+        
+        if (rolesError) {
+          console.error('Error fetching user roles:', rolesError)
+          throw rolesError
+        }
+        
+        console.log('Fetched user roles:', roles)
+        setUserRoles(roles || [])
+      } catch (err) {
+        console.error('Error in fetchData:', err)
+        setError('Failed to load user roles. Please try again later.')
+      } finally {
+        setLoadingData(false)
+      }
+    }
+    
+    fetchData()
+  }, [])
+
+  // Handle profile data changes
+  const handleProfileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+    setProfileData(prev => ({
+      ...prev,
+      [name]: value
+    }))
+  }
+
+  // Handle user role selection
+  const handleRoleSelect = (roleId: string) => {
+    console.log('Selected role ID:', roleId)
+    setProfileData(prev => ({
+      ...prev,
+      user_role: roleId
+    }))
+  }
+
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setError(null)
+
+    // Validate form
+    if (password !== confirmPassword) {
+      setError('Passwords do not match')
+      setLoading(false)
+      return
+    }
+    
+    if (!profileData.user_role) {
+      setError('Please select a user type')
+      setLoading(false)
+      return
+    }
+
+    try {
+      console.log('Creating user with data:', {
+        email,
+        role: userRoles.find(role => role.id === profileData.user_role)?.role_name,
+        profileData
+      })
       
-      if (error) {
-        throw error;
+      // 1. Create the user in auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          data: {
+            role: userRoles.find(role => role.id === profileData.user_role)?.role_name || 'student'
+          }
+        },
+      })
+
+      if (authError) {
+        console.error('Auth error:', authError)
+        setError(authError.message)
+        return
       }
       
-      // Move to success step
-      setStep('success');
-    } catch (error: any) {
-      setError(error.message || "Failed to create account");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  const renderRoleSelection = () => (
-    <div>
-      <h3 className="text-lg font-medium text-gray-900 mb-4">Select your role</h3>
-      <div className="space-y-3">
-        {roles.map(role => (
-          <button
-            key={role.id}
-            className={`w-full p-4 rounded-lg border-2 text-left hover:shadow-md transition-shadow ${role.color}`}
-            onClick={() => handleRoleSelect(role.id)}
-          >
-            <div className="font-medium text-lg">{role.name}</div>
-            <div className="text-sm opacity-75">{role.description}</div>
-          </button>
-        ))}
-      </div>
-      <div className="mt-6 text-center">
-        <p className="text-sm text-gray-500 mb-2">
-          Note: Admin accounts can only be created by existing administrators
-        </p>
-        <Link 
-          href="/auth/signin"
-          className="text-sm text-[#2563EB] hover:underline"
-        >
-          Already have an account? Sign in
-        </Link>
-      </div>
-    </div>
-  );
-  
-  const renderRegistrationForm = () => (
-    <form className="space-y-6" onSubmit={handleSubmit}>
-      <div className="flex items-center mb-4">
-        <button 
-          type="button"
-          className="flex items-center text-sm text-gray-500 hover:text-gray-700"
-          onClick={() => setStep('role')}
-        >
-          <ArrowLeft className="h-4 w-4 mr-1" />
-          Back to role selection
-        </button>
-      </div>
+      console.log('Auth data:', authData)
       
-      <div className="bg-gray-50 rounded-md p-3 flex items-center justify-between">
-        <div>
-          <span className="text-sm text-gray-500">Registering as:</span>
-          <span className={`ml-2 px-2 py-1 rounded-md text-sm font-medium ${
-            roles.find(r => r.id === selectedRole)?.color || 'bg-gray-100 text-gray-800'
-          }`}>
-            {roles.find(r => r.id === selectedRole)?.name || 'User'}
-          </span>
-        </div>
-      </div>
-      
-      {error && (
-        <div className="bg-red-50 border-l-4 border-red-400 p-4">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <AlertCircle className="h-5 w-5 text-red-400" />
-            </div>
-            <div className="ml-3">
-              <p className="text-sm text-red-700">{error}</p>
-            </div>
-          </div>
-        </div>
-      )}
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">
-            First Name <span className="text-red-500">*</span>
-          </label>
-          <div className="mt-1">
-            <input
-              id="firstName"
-              name="firstName"
-              type="text"
-              autoComplete="given-name"
-              required
-              value={formData.firstName}
-              onChange={handleInputChange}
-              className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-[#2563EB] focus:border-[#2563EB] sm:text-sm"
-            />
-          </div>
-        </div>
+      // 2. Create profile record
+      if (authData?.user) {
+        const profileRecord = {
+          user_id: authData.user.id,
+          email,
+          first_name: profileData.first_name,
+          last_name: profileData.last_name,
+          preferred_name: profileData.preferred_name || null,
+          user_role: profileData.user_role,
+        }
         
-        <div>
-          <label htmlFor="lastName" className="block text-sm font-medium text-gray-700">
-            Last Name <span className="text-red-500">*</span>
-          </label>
-          <div className="mt-1">
-            <input
-              id="lastName"
-              name="lastName"
-              type="text"
-              autoComplete="family-name"
-              required
-              value={formData.lastName}
-              onChange={handleInputChange}
-              className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-[#2563EB] focus:border-[#2563EB] sm:text-sm"
-            />
-          </div>
+        console.log('Creating profile record:', profileRecord)
+        
+        // Use the server API endpoint instead of direct Supabase call
+        const response = await fetch('/api/create-profile', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(profileRecord),
+        })
+        
+        const result = await response.json()
+        
+        if (!response.ok) {
+          console.error('Profile API error:', result)
+          setError('Failed to create user profile')
+          return
+        }
+        
+        console.log('Profile created successfully:', result)
+      }
+
+      // Show success message or redirect
+      router.push('/auth/verify-email')
+    } catch (err) {
+      console.error('Signup error:', err)
+      setError('An unexpected error occurred')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Get role color based on role name
+  const getRoleColor = (roleName: string) => {
+    switch (roleName.toLowerCase()) {
+      case 'instructor':
+        return 'bg-green-600 hover:bg-green-500 border-green-600';
+      case 'provider':
+        return 'bg-purple-600 hover:bg-purple-500 border-purple-600';
+      case 'student':
+        return 'bg-amber-600 hover:bg-amber-500 border-amber-600';
+      default:
+        return 'bg-blue-600 hover:bg-blue-500 border-blue-600';
+    }
+  }
+
+  // If no user roles are available, show hardcoded options
+  const renderUserRoleButtons = () => {
+    if (loadingData) {
+      return (
+        <div className="flex justify-center py-4">
+          <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-blue-500"></div>
         </div>
-      </div>
+      )
+    }
+    
+    if (userRoles.length === 0) {
+      // Fallback to hardcoded roles if no roles are fetched
+      const fallbackRoles = [
+        { id: 'instructor', role_name: 'instructor' },
+        { id: 'provider', role_name: 'provider' },
+        { id: 'student', role_name: 'student' }
+      ]
       
-      <div>
-        <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-          Email address <span className="text-red-500">*</span>
-        </label>
-        <div className="mt-1">
-          <input
-            id="email"
-            name="email"
-            type="email"
-            autoComplete="email"
-            required
-            value={formData.email}
-            onChange={handleInputChange}
-            className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-[#2563EB] focus:border-[#2563EB] sm:text-sm"
-          />
+      return (
+        <div className="grid grid-cols-3 gap-3">
+          {fallbackRoles.map(role => {
+            const isSelected = profileData.user_role === role.id;
+            const baseClasses = "flex items-center justify-center px-4 py-3 border rounded-md text-sm font-medium transition-colors";
+            const colorClasses = getRoleColor(role.role_name);
+            const selectedClasses = isSelected 
+              ? `text-white ${colorClasses}` 
+              : "text-gray-700 bg-white border-gray-300 hover:bg-gray-50";
+            
+            return (
+              <button
+                key={role.id}
+                type="button"
+                className={`${baseClasses} ${selectedClasses}`}
+                onClick={() => handleRoleSelect(role.id)}
+              >
+                {role.role_name.charAt(0).toUpperCase() + role.role_name.slice(1)}
+              </button>
+            );
+          })}
         </div>
-        <p className="mt-1 text-xs text-gray-500">
-          Please use your institutional email if applicable
-        </p>
+      )
+    }
+    
+    return (
+      <div className="grid grid-cols-3 gap-3">
+        {userRoles.map(role => {
+          const isSelected = profileData.user_role === role.id;
+          const baseClasses = "flex items-center justify-center px-4 py-3 border rounded-md text-sm font-medium transition-colors";
+          const colorClasses = getRoleColor(role.role_name);
+          const selectedClasses = isSelected 
+            ? `text-white ${colorClasses}` 
+            : "text-gray-700 bg-white border-gray-300 hover:bg-gray-50";
+          
+          return (
+            <button
+              key={role.id}
+              type="button"
+              className={`${baseClasses} ${selectedClasses}`}
+              onClick={() => handleRoleSelect(role.id)}
+            >
+              {role.role_name.charAt(0).toUpperCase() + role.role_name.slice(1)}
+            </button>
+          );
+        })}
       </div>
-      
-      <div>
-        <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-          Password <span className="text-red-500">*</span>
-        </label>
-        <div className="mt-1 relative">
-          <input
-            id="password"
-            name="password"
-            type={showPassword ? "text" : "password"}
-            autoComplete="new-password"
-            required
-            value={formData.password}
-            onChange={handleInputChange}
-            className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-[#2563EB] focus:border-[#2563EB] sm:text-sm"
-          />
-          <button
-            type="button"
-            className="absolute inset-y-0 right-0 pr-3 flex items-center"
-            onClick={() => setShowPassword(!showPassword)}
-            aria-label={showPassword ? "Hide password" : "Show password"}
-          >
-            {showPassword ? (
-              <EyeOff className="h-5 w-5 text-gray-400" />
-            ) : (
-              <Eye className="h-5 w-5 text-gray-400" />
-            )}
-          </button>
-        </div>
-        <p className="mt-1 text-xs text-gray-500">
-          Password must be at least 8 characters and include uppercase, lowercase, number, and special character
-        </p>
-      </div>
-      
-      <div>
-        <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
-          Confirm Password <span className="text-red-500">*</span>
-        </label>
-        <div className="mt-1 relative">
-          <input
-            id="confirmPassword"
-            name="confirmPassword"
-            type={showConfirmPassword ? "text" : "password"}
-            autoComplete="new-password"
-            required
-            value={formData.confirmPassword}
-            onChange={handleInputChange}
-            className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-[#2563EB] focus:border-[#2563EB] sm:text-sm"
-          />
-          <button
-            type="button"
-            className="absolute inset-y-0 right-0 pr-3 flex items-center"
-            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-            aria-label={showConfirmPassword ? "Hide password" : "Show password"}
-          >
-            {showConfirmPassword ? (
-              <EyeOff className="h-5 w-5 text-gray-400" />
-            ) : (
-              <Eye className="h-5 w-5 text-gray-400" />
-            )}
-          </button>
-        </div>
-      </div>
-      
-      <div className="flex items-center">
-        <input
-          id="agreeTerms"
-          name="agreeTerms"
-          type="checkbox"
-          checked={formData.agreeTerms}
-          onChange={handleInputChange}
-          className="h-4 w-4 text-[#2563EB] focus:ring-[#2563EB] border-gray-300 rounded"
-        />
-        <label htmlFor="agreeTerms" className="ml-2 block text-sm text-gray-700">
-          I agree to the{' '}
-          <Link href="/terms" className="text-[#2563EB] hover:underline">
-            Terms of Service
-          </Link>{' '}
-          and{' '}
-          <Link href="/privacy" className="text-[#2563EB] hover:underline">
-            Privacy Policy
-          </Link>
-        </label>
-      </div>
-      
-      <div>
-        <button
-          type="submit"
-          disabled={isLoading}
-          className={`w-full flex justify-center items-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#2563EB] hover:bg-[#1d4ed8] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#2563EB] ${
-            isLoading ? 'opacity-70 cursor-not-allowed' : ''
-          }`}
-        >
-          {isLoading ? (
-            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2" />
-          ) : (
-            <UserPlus className="h-5 w-5 mr-2" />
-          )}
-          Create Account
-        </button>
-      </div>
-    </form>
-  );
-  
-  const renderSuccessMessage = () => (
-    <div className="text-center py-8">
-      <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100">
-        <CheckCircle className="h-6 w-6 text-green-600" />
-      </div>
-      <h3 className="mt-6 text-xl font-medium text-gray-900">Registration Successful!</h3>
-      <p className="mt-2 text-sm text-gray-500">
-        Your account has been created successfully. A verification email has been sent to your email address.
-      </p>
-      <div className="mt-6">
-        <Link
-          href="/auth/signin"
-          className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#2563EB] hover:bg-[#1d4ed8] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#2563EB]"
-        >
-          Go to Login
-        </Link>
-      </div>
-    </div>
-  );
-  
+    )
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="flex justify-center">
-          <Image
-            src="/jmu-logo.png"
-            alt="JMU Online Academy"
-            width={80}
-            height={80}
-            className="h-20 w-auto"
-          />
+    <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="w-full max-w-md space-y-8">
+        <div className="text-center">
+          <h2 className="mt-6 text-3xl font-bold tracking-tight text-gray-900">
+            Create a new account
+          </h2>
+          <p className="mt-2 text-sm text-gray-600">
+            Or{' '}
+            <Link href="/auth/signin" className="font-medium text-blue-600 hover:text-blue-500">
+              sign in to your account
+            </Link>
+          </p>
         </div>
-        <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-          JMU Online Academy
-        </h2>
-        <p className="mt-2 text-center text-sm text-gray-600">
-          {step === 'role' && "Create a new account"}
-          {step === 'info' && "Complete your registration"}
-          {step === 'success' && "Account created successfully"}
-        </p>
-      </div>
+        <form className="mt-8 space-y-6" onSubmit={handleSignUp}>
+          <div className="space-y-6">
+            {/* User Role Selection */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                I am a:
+              </label>
+              {renderUserRoleButtons()}
+            </div>
+            
+            <hr className="border-gray-200" />
+            
+            {/* First Name */}
+            <div>
+              <label htmlFor="first_name" className="block text-sm font-medium text-gray-700">
+                First Name
+              </label>
+              <input
+                id="first_name"
+                name="first_name"
+                type="text"
+                required
+                className="relative block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
+                placeholder="First Name"
+                value={profileData.first_name}
+                onChange={handleProfileChange}
+              />
+            </div>
+            
+            {/* Last Name */}
+            <div>
+              <label htmlFor="last_name" className="block text-sm font-medium text-gray-700">
+                Last Name
+              </label>
+              <input
+                id="last_name"
+                name="last_name"
+                type="text"
+                required
+                className="relative block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
+                placeholder="Last Name"
+                value={profileData.last_name}
+                onChange={handleProfileChange}
+              />
+            </div>
+            
+            {/* Preferred Name (Optional) */}
+            <div>
+              <label htmlFor="preferred_name" className="block text-sm font-medium text-gray-700">
+                Preferred Name (Optional)
+              </label>
+              <input
+                id="preferred_name"
+                name="preferred_name"
+                type="text"
+                className="relative block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
+                placeholder="Preferred Name"
+                value={profileData.preferred_name}
+                onChange={handleProfileChange}
+              />
+            </div>
+            
+            <hr className="border-gray-200" />
+            
+            {/* Email field */}
+            <div>
+              <label htmlFor="email-address" className="block text-sm font-medium text-gray-700">
+                Email address
+              </label>
+              <input
+                id="email-address"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                className="relative block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
+                placeholder="Email address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+            
+            {/* Password fields */}
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                Password
+              </label>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                autoComplete="new-password"
+                required
+                className="relative block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
+            
+            <div>
+              <label htmlFor="confirm-password" className="block text-sm font-medium text-gray-700">
+                Confirm Password
+              </label>
+              <input
+                id="confirm-password"
+                name="confirm-password"
+                type="password"
+                autoComplete="new-password"
+                required
+                className="relative block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
+                placeholder="Confirm Password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+              />
+            </div>
+          </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
-          {step === 'role' && renderRoleSelection()}
-          {step === 'info' && renderRegistrationForm()}
-          {step === 'success' && renderSuccessMessage()}
-        </div>
+          {error && (
+            <div className="rounded-md bg-red-50 p-4">
+              <div className="text-sm text-red-700">{error}</div>
+            </div>
+          )}
+
+          <div>
+            <button
+              type="submit"
+              disabled={loading || loadingData}
+              className="group relative flex w-full justify-center rounded-md bg-blue-600 py-2 px-3 text-sm font-semibold text-white hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:bg-blue-300"
+            >
+              {loading ? 'Creating account...' : 'Sign up'}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
-  );
-};
-
-export default SignUpPage; 
+  )
+} 

@@ -1,37 +1,10 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import localFont from "next/font/local";
 import "./globals.css";
 
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
-});
-
-const geistSans = localFont({
-  src: [
-    {
-      path: '../fonts/Geist-Regular.woff2',
-      weight: '400',
-      style: 'normal',
-    },
-    {
-      path: '../fonts/Geist-Medium.woff2',
-      weight: '500',
-      style: 'normal',
-    },
-    {
-      path: '../fonts/Geist-Bold.woff2',
-      weight: '700',
-      style: 'normal',
-    }
-  ],
-  variable: '--font-geist'
-});
-
-const geistMono = localFont({
-  src: '../fonts/GeistMono-Regular.woff2',
-  variable: '--font-geist-mono'
 });
 
 export const metadata: Metadata = {
@@ -47,7 +20,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${inter.variable} ${geistSans.variable} ${geistMono.variable} font-sans antialiased`}
+        className={`${inter.variable} font-sans antialiased`}
+        style={{
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+        }}
       >
         {children}
       </body>

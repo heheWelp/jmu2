@@ -1,6 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  /* config options here */
+  optimizeFonts: true,
+  experimental: {
+    optimizeFonts: true,
+  },
 };
 
 module.exports = nextConfig; 

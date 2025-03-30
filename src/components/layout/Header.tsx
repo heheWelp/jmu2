@@ -83,7 +83,9 @@ export default function Header({ showTitle = true }: HeaderProps) {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
-    router.push('/auth/signin')
+    setTimeout(() => {
+      router.push('/auth/signin')
+    }, 200)
   }
 
   const toggleDropdown = () => {

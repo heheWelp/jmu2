@@ -38,17 +38,8 @@ export async function middleware(request: NextRequest) {
   const { data: { session } } = await supabase.auth.getSession()
   const path = request.nextUrl.pathname
   
-  console.log(`[Middleware] Path: ${path}, Session exists: ${!!session}`)
-  
-  if (session) {
-    console.log(`[Middleware] User ID: ${session.user.id}`)
-    console.log(`[Middleware] User email: ${session.user.email}`)
-    console.log(`[Middleware] User metadata:`, JSON.stringify(session.user.user_metadata))
-  }
-
-  // If user is not signed in and the current path is not /auth/*, redirect to /auth/signin
+  // Only log on non-authenticated paths or redirects
   if (!session && !path.startsWith('/auth/')) {
-    console.log(`[Middleware] No session, redirecting to signin from ${path}`)
     return NextResponse.redirect(new URL('/auth/signin', request.url))
   }
 
@@ -56,16 +47,12 @@ export async function middleware(request: NextRequest) {
   if (session) {
     const user = session.user
     const userRole = user.user_metadata?.role || null
-    console.log(`[Middleware] User role: ${userRole}, path: ${path}`)
 
     // Handle root path redirect based on role
     if (path === '/' || path === '/dashboard') {
       if (userRole) {
-        console.log(`[Middleware] Redirecting to ${userRole} dashboard`)
-        // Use a 307 temporary redirect to ensure the redirect is followed
         return NextResponse.redirect(new URL(`/${userRole}/dashboard`, request.url), 307)
       }
-      console.log(`[Middleware] No user role, redirecting to signin`)
       return NextResponse.redirect(new URL('/auth/signin', request.url), 307)
     }
 
@@ -76,7 +63,6 @@ export async function middleware(request: NextRequest) {
       if (path.startsWith(`/${role}/`) || path === `/${role}`) {
         // If user doesn't have this role, redirect to their appropriate dashboard
         if (userRole !== role) {
-          console.log(`[Middleware] User with role ${userRole} trying to access ${role} route`)
           if (userRole) {
             return NextResponse.redirect(new URL(`/${userRole}/dashboard`, request.url), 307)
           }

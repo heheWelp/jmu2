@@ -34,7 +34,7 @@ type UserRole = 'admin' | 'instructor' | 'provider' | 'student'
 const adminNavItems: NavItem[] = [
   { name: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
   { name: 'Manage Users', href: '/admin/users', icon: Users },
-  { name: 'Manage Content', href: '/admin/content', icon: FileText },
+  { name: 'Manage Content', href: '/admin/courses', icon: FileText },
   { name: 'Reports', href: '/admin/reports', icon: BarChart2 },
   { name: 'Tag & Talk', href: '/admin/tag-talk', icon: MessageSquare },
   { name: 'Settings', href: '/admin/settings', icon: Settings },

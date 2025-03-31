@@ -12,11 +12,8 @@ export default async function EditCoursePage({
 }: {
   params: { id: string }
 }) {
-  // Get the ID from params and await it
-  const params_id = await params.id
-  
-  // Use the server action to get all course data
-  const result = await getCourseData(params_id)
+  // Get the course data using the ID from params
+  const result = await getCourseData(params.id)
   
   // Handle errors
   if ('error' in result) {
@@ -29,7 +26,7 @@ export default async function EditCoursePage({
   // Return the dynamic course editor with all required data
   return (
     <DynamicCourseEditor
-      courseId={params_id}
+      courseId={params.id}
       courseName={course.name}
       initialTab="basic-info"
       courseData={course}

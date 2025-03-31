@@ -13,13 +13,11 @@ export async function GET(
   { params }: { params: { courseId: string } }
 ) {
   try {
-    const { courseId } = params
-    
     // Fetch media for the course
     const { data, error } = await supabaseAdmin
       .from('course_media')
       .select('*')
-      .eq('course_id', courseId)
+      .eq('course_id', params.courseId)
       .order('course_order', { ascending: true })
     
     if (error) {
@@ -45,7 +43,6 @@ export async function POST(
   { params }: { params: { courseId: string } }
 ) {
   try {
-    const { courseId } = params
     const body = await req.json()
     
     const { media_type, media_url, course_order } = body
@@ -62,7 +59,7 @@ export async function POST(
     const { data, error } = await supabaseAdmin
       .from('course_media')
       .insert({
-        course_id: courseId,
+        course_id: params.courseId,
         media_type,
         media_url,
         course_order,

@@ -11,13 +11,11 @@ export async function GET(
   { params }: { params: { courseId: string } }
 ) {
   try {
-    const { courseId } = params
-
     // Fetch all content structure items for the course
     const { data: structureData, error: structureError } = await supabaseAdmin
       .from('course_content_structure')
       .select('*')
-      .eq('course_id', courseId)
+      .eq('course_id', params.courseId)
       .order('display_order', { ascending: true })
 
     if (structureError) {
@@ -158,12 +156,11 @@ export async function PUT(
   { params }: { params: { courseId: string } }
 ) {
   try {
-    const { courseId } = params
     const { structure } = await req.json()
 
     // Start a transaction
     const { error } = await supabaseAdmin.rpc('update_course_structure', {
-      p_course_id: courseId,
+      p_course_id: params.courseId,
       p_structure: structure
     })
 

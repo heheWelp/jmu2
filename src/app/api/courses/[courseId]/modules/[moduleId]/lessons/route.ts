@@ -31,7 +31,7 @@ export async function GET(
     }
 
     return NextResponse.json({ success: true, lessons: data })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Unexpected error in GET lessons:', error)
     return NextResponse.json(
       { success: false, error: 'Server error' },
@@ -106,7 +106,7 @@ export async function POST(
       success: true, 
       lesson: newLesson?.[0] || null
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Unexpected error in POST lesson:', error)
     return NextResponse.json(
       { success: false, error: 'Server error' },
